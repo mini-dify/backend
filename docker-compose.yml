@@ -1,0 +1,15 @@
+# This docker-compose file is configured to run only the backend service.
+# The mongodb and qdrant services are commented out.
+# To run the backend, you need to have mongodb and qdrant running separately.
+# You can uncomment the services below to run them all together.
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    networks:
+      - mini-dify-net
