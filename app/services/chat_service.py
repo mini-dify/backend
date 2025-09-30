@@ -1,4 +1,4 @@
-from . import schemas
+from .. import schemas
 
 
 def get_chat_response(request: schemas.ChatRequest) -> schemas.ChatResponse:
