@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routers import chat, item_router
+from .routers import mongodb_router
 from .db.database import close_mongo_connection, get_database
 
 app = FastAPI(title="Mini-Dify Backend")
@@ -12,8 +12,7 @@ def startup_db_client():
 def shutdown_db_client():
     close_mongo_connection()
 
-app.include_router(chat.router, prefix="/api/v1", tags=["Chat"])
-app.include_router(item_router.router, prefix="/api/v1", tags=["Items"])
+app.include_router(mongodb_router.router, prefix="/api/v1", tags=["MongoDB"])
 
 
 @app.get("/")
