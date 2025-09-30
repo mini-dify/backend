@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends
-from . import schemas, services
+from fastapi import APIRouter
+from .. import schemas
+from ..services import chat_service
 
 router = APIRouter()
 
 
 @router.post("/chat", response_model=schemas.ChatResponse)
 def chat_endpoint(request: schemas.ChatRequest):
-    return services.get_chat_response(request)
+    return chat_service.get_chat_response(request)
