@@ -4,3 +4,4 @@ python-dotenv
 pydantic-settings
 motor
 python-multipart
+qdrant-client
