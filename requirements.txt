@@ -6,8 +6,4 @@ motor
 python-multipart
 qdrant-client
 httpx
-<<<<<<< HEAD
 elasticsearch[async]
-=======
-elasticsearch[async]
->>>>>>> d4079045f6fb52697b09278d316f58f62aa98e90
