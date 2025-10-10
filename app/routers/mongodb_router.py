@@ -4,10 +4,8 @@ from ..services import mongodb_service
 from ..models.mongodb import UpdateDataRequest, DeleteDataWithFilterRequest
 import json
 
-router = APIRouter(
-    prefix="/mongodb",
-    tags=["mongodb"],
-)
+router = APIRouter()
+
 @router.get(
     "/databases",
     response_model=List[str],
