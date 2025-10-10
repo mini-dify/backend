@@ -6,4 +6,4 @@ motor
 python-multipart
 qdrant-client
 httpx
-elasticsearch
+ elasticsearch[async]
