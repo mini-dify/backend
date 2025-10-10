@@ -4,9 +4,7 @@ from typing import Optional
 # ElasticSearch connection details
 # Connect to all 3 Elasticsearch nodes for high availability
 ES_HOSTS = [
-    "http://es01:9200",
-    "http://es02:9200",
-    "http://es03:9200"
+    "http://es01:9200"
 ]
 
 client: Optional[AsyncElasticsearch] = None
