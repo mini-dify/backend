@@ -6,4 +6,4 @@ motor
 python-multipart
 qdrant-client
 httpx
-elasticsearch[async]
+elasticsearch[async]>=8.0.0,<9.0.0
