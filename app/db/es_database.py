@@ -2,8 +2,12 @@ from elasticsearch import AsyncElasticsearch
 from typing import Optional
 
 # ElasticSearch connection details
-# es01 is exposed on port 9200 (from docker-compose.yml)
-ES_HOSTS = ["http://localhost:9200"]
+# Connect to all 3 Elasticsearch nodes for high availability
+ES_HOSTS = [
+    "http://es01:9200",
+    "http://es02:9200",
+    "http://es03:9200"
+]
 
 client: Optional[AsyncElasticsearch] = None
 
