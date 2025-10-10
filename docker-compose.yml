@@ -7,9 +7,13 @@ services:
     container_name: mini-dify-backend
     ports:
       - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
     depends_on:
       - mongodb
       - es01
+      - es02
+      - es03
 
 
   mongodb:

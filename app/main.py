@@ -2,6 +2,11 @@ from fastapi import FastAPI, Depends
 from .routers import mongodb_router, qdrant_router, es_router, developCellApi_embedding, developCellApi_llm
 from .db.database import close_mongo_connection, get_database, get_qdrant_db
 from .security import check_auth
+from .logging_config import setup_logging, get_logger
+
+# Initialize logging
+setup_logging()
+logger = get_logger(__name__)
 
 app = FastAPI(
     title="Mini-Dify Backend",
@@ -10,12 +15,16 @@ app = FastAPI(
 
 @app.on_event("startup")
 def startup_db_client():
+    logger.info("Starting up application...")
     get_database()
     get_qdrant_db()
+    logger.info("Database connections initialized")
 
 @app.on_event("shutdown")
 def shutdown_db_client():
+    logger.info("Shutting down application...")
     close_mongo_connection()
+    logger.info("Application shutdown complete")
 
 
 app.include_router(mongodb_router.router, prefix="/mongodb", tags=["MongoDB"])
