@@ -3,7 +3,6 @@ from typing import List, Dict, Any
 
 
 class EmbeddingRequest(BaseModel):
-    model: str
     input: str
 
 
@@ -13,7 +12,6 @@ class ChatMessage(BaseModel):
 
 
 class ChatCompletionRequest(BaseModel):
-    model: str
     messages: List[ChatMessage]
 
 

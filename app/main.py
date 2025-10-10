@@ -1,8 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from .routers import mongodb_router, qdrant_router, developCellApi_embedding, developCellApi_llm
 from .db.database import close_mongo_connection, get_database, get_qdrant_db
+from .security import check_auth
 
-app = FastAPI(title="Mini-Dify Backend")
+app = FastAPI(
+    title="Mini-Dify Backend",
+    dependencies=[Depends(check_auth)]
+)
 
 @app.on_event("startup")
 def startup_db_client():

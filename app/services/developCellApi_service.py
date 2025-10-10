@@ -6,14 +6,18 @@ from app.models.developCellApi_model import EmbeddingRequest, ChatCompletionRequ
 
 async def get_embedding_from_lms(request: EmbeddingRequest) -> dict:
     headers = {
-        "Authorization": settings.LMS_API_AUTH_HEADER,
+        "Authorization": settings.LMS_API_AUTHORIZATION,
         "Content-Type": "application/json"
     }
-    url = f"{settings.LMS_API_BASE_URL}/embeddings"
+    url = settings.EMBEDDING_API_URL
+    json_body = {
+        "model": settings.EMBEDDING_MODEL,
+        "input": request.input
+    }
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url, json=request.dict(), headers=headers)
+            response = await client.post(url, json=json_body, headers=headers)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -24,14 +28,18 @@ async def get_embedding_from_lms(request: EmbeddingRequest) -> dict:
 
 async def get_chat_completion_from_lms(request: ChatCompletionRequest) -> dict:
     headers = {
-        "Authorization": settings.LMS_API_AUTH_HEADER,
+        "Authorization": settings.LMS_API_AUTHORIZATION,
         "Content-Type": "application/json"
     }
-    url = f"{settings.LMS_API_BASE_URL}/chat/completions"
+    url = settings.CHAT_COMPLETIONS_API_URL
+    json_body = {
+        "model": settings.CHAT_MODEL,
+        "messages": [msg.dict() for msg in request.messages]
+    }
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(url, json=request.dict(), headers=headers)
+            response = await client.post(url, json=json_body, headers=headers)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
