@@ -1,5 +1,11 @@
 from qdrant_client import QdrantClient, models
 from app.models.qdrant import CollectionConfig, UpsertPoints, SearchQuery
+from typing import List
+
+
+async def list_collections(client: QdrantClient) -> List[str]:
+    collections_response = client.get_collections()
+    return [collection.name for collection in collections_response.collections]
 
 
 async def create_collection(client: QdrantClient, config: CollectionConfig):

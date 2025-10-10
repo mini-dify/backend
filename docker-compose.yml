@@ -21,6 +21,15 @@ services:
       - ../mongodb/data:/data/db
     restart: unless-stopped
 
+  minidify_qdrant:
+    image: qdrant/qdrant:latest
+    container_name: minidify_qdrant
+    restart: always
+    #ports:
+    #  - "6334:6334"
+    volumes:
+      - ../qdrant/qdrant_storage:/qdrant/storage:z
+
 
   # Elasticsearch 노드 1 (마스터 노드 역할 포함)
   es01:

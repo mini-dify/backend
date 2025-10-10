@@ -1,8 +1,9 @@
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 class Settings(BaseSettings):
-    QDRANT_URL: str = "http://qdrant-node1:6333"
-    QDRANT_API_KEY: str | None = None
+    QDRANT_URL: str = "http://minidify_qdrant:6333"
+    QDRANT_API_KEY: Optional[str] = None
     HTTP_BASIC_USERNAME: str = "admin"
     HTTP_BASIC_PASSWORD: str = "admin"
 
