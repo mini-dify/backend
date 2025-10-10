@@ -5,3 +5,4 @@ pydantic-settings
 motor
 python-multipart
 qdrant-client
+httpx

@@ -6,7 +6,7 @@ import json
 
 router = APIRouter(
     prefix="/mongodb",
-    tags=["mongodb"],  # Swagger 문서 구분용 (선택)
+    tags=["mongodb"],
 )
 @router.get(
     "/databases",
