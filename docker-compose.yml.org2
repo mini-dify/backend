@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  mini-dify-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mini-dify-backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - ../mongodb/data:/data/db
+    restart: unless-stopped
+
+  minidify_qdrant:
+    image: qdrant/qdrant:latest
+    container_name: minidify_qdrant
+    restart: always
+    #ports:
+    #  - "6334:6334"
+    volumes:
+      - ../qdrant/qdrant_storage:/qdrant/storage:z
+
