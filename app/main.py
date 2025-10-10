@@ -18,13 +18,13 @@ def shutdown_db_client():
     close_mongo_connection()
 
 
-app.include_router(mongodb_router.router, prefix="/api/v1/mongodb", tags=["MongoDB"])
-app.include_router(qdrant_router.router, prefix="/api/v1/qdrant", tags=["Qdrant"])
-app.include_router(es_router.router, prefix="/api/v1/elasticsearch", tags=["Elasticsearch"])
+app.include_router(mongodb_router.router, prefix="/mongodb", tags=["MongoDB"])
+app.include_router(qdrant_router.router, prefix="/qdrant", tags=["Qdrant"])
+app.include_router(es_router.router, prefix="/elasticsearch", tags=["Elasticsearch"])
 
 
-app.include_router(developCellApi_embedding.router, prefix="/api/v1/develop", tags=["DevelopCell-Embedding"])
-app.include_router(developCellApi_llm.router, prefix="/api/v1/develop", tags=["DevelopCell-LLM"])
+app.include_router(developCellApi_embedding.router, prefix="/developCell", tags=["DevelopCell-Embedding"])
+app.include_router(developCellApi_llm.router, prefix="/developCell", tags=["DevelopCell-LLM"])
 
 
 @app.get("/")
