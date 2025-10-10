@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends
-from .routers import mongodb_router, qdrant_router, developCellApi_embedding, developCellApi_llm
+from .routers import mongodb_router, qdrant_router, es_router, developCellApi_embedding, developCellApi_llm
 from .db.database import close_mongo_connection, get_database, get_qdrant_db
 from .security import check_auth
 
@@ -20,6 +20,7 @@ def shutdown_db_client():
 
 app.include_router(mongodb_router.router, prefix="/api/v1/mongodb", tags=["MongoDB"])
 app.include_router(qdrant_router.router, prefix="/api/v1/qdrant", tags=["Qdrant"])
+app.include_router(es_router.router, prefix="/api/v1/elasticsearch", tags=["Elasticsearch"])
 
 
 app.include_router(developCellApi_embedding.router, prefix="/api/v1/develop", tags=["DevelopCell-Embedding"])
