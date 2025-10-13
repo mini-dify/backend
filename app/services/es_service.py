@@ -1,6 +1,9 @@
 from ..db.es_database import get_es_client
 from typing import List, Dict, Any, Optional
 from elasticsearch import NotFoundError
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 async def create_index(index_name: str, mappings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
