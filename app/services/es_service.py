@@ -25,12 +25,12 @@ async def create_index(index_name: str, mappings: Optional[Dict[str, Any]] = Non
     client = get_es_client()
     body = {}
 
-    log.info(f"Creating mappings: {mappings}")
+    logger.info(f"Creating mappings: {mappings}")
 
     if mappings:
         body["mappings"] = mappings
 
-    log.info(f"Creating body    : {body}")
+    logger.info(f"Creating body    : {body}")
 
     response = await client.indices.create(index=index_name, body=body)
     return response
