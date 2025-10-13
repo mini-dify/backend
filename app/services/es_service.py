@@ -1,7 +1,7 @@
 from ..db.es_database import get_es_client
 from typing import List, Dict, Any, Optional
 from elasticsearch import NotFoundError
-from logging_config import get_logger
+from ..logging_config import get_logger
 
 logger = get_logger(__name__)
 
