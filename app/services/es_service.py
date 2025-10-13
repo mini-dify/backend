@@ -1,7 +1,8 @@
 from ..db.es_database import get_es_client
 from typing import List, Dict, Any, Optional
-from elasticsearch import NotFoundError
+from elasticsearch import NotFoundError, RequestError, ConnectionError as ESConnectionError
 from ..logging_config import get_logger
+import traceback
 
 logger = get_logger(__name__)
 
@@ -25,18 +26,33 @@ async def create_index(index_name: str, mappings: Optional[Dict[str, Any]] = Non
             }
         }
     """
-    client = get_es_client()
-    body = {}
+    try:
+        client = get_es_client()
+        body = {}
 
-    logger.info(f"Creating mappings: {mappings}")
+        logger.info(f"Creating index '{index_name}' with mappings: {mappings}")
 
-    if mappings:
-        body["mappings"] = mappings
+        if mappings:
+            body["mappings"] = mappings
 
-    logger.info(f"Creating body    : {body}")
+        logger.info(f"Creating body: {body}")
 
-    response = await client.indices.create(index=index_name, body=body)
-    return response
+        response = await client.indices.create(index=index_name, body=body)
+        logger.info(f"Successfully created index '{index_name}'")
+        return response
+    except RequestError as e:
+        logger.error(f"RequestError while creating index '{index_name}': {e.error}")
+        logger.error(f"Error details: {e.info}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except ESConnectionError as e:
+        logger.error(f"ConnectionError while creating index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while creating index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
 
 
 async def delete_index(index_name: str) -> Dict[str, Any]:
@@ -49,9 +65,29 @@ async def delete_index(index_name: str) -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: ElasticSearch 응답
     """
-    client = get_es_client()
-    response = await client.indices.delete(index=index_name)
-    return response
+    try:
+        logger.info(f"Deleting index '{index_name}'")
+        client = get_es_client()
+        response = await client.indices.delete(index=index_name)
+        logger.info(f"Successfully deleted index '{index_name}'")
+        return response
+    except NotFoundError as e:
+        logger.error(f"NotFoundError while deleting index '{index_name}': Index does not exist")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except RequestError as e:
+        logger.error(f"RequestError while deleting index '{index_name}': {e.error}")
+        logger.error(f"Error details: {e.info}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except ESConnectionError as e:
+        logger.error(f"ConnectionError while deleting index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while deleting index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
 
 
 async def list_indices() -> List[str]:
@@ -61,9 +97,26 @@ async def list_indices() -> List[str]:
     Returns:
         List[str]: 인덱스 이름 목록
     """
-    client = get_es_client()
-    response = await client.cat.indices(format="json")
-    return [index["index"] for index in response]
+    try:
+        logger.info("Listing all indices")
+        client = get_es_client()
+        response = await client.cat.indices(format="json")
+        indices = [index["index"] for index in response]
+        logger.info(f"Successfully retrieved {len(indices)} indices")
+        return indices
+    except RequestError as e:
+        logger.error(f"RequestError while listing indices: {e.error}")
+        logger.error(f"Error details: {e.info}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except ESConnectionError as e:
+        logger.error(f"ConnectionError while listing indices: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while listing indices: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
 
 
 async def insert_document(index_name: str, document: Dict[str, Any], doc_id: Optional[str] = None) -> str:
@@ -78,9 +131,31 @@ async def insert_document(index_name: str, document: Dict[str, Any], doc_id: Opt
     Returns:
         str: 삽입된 문서의 ID
     """
-    client = get_es_client()
-    response = await client.index(index=index_name, body=document, id=doc_id)
-    return response["_id"]
+    try:
+        logger.info(f"Inserting document into index '{index_name}' with doc_id: {doc_id}")
+        client = get_es_client()
+        response = await client.index(index=index_name, body=document, id=doc_id)
+        inserted_id = response["_id"]
+        logger.info(f"Successfully inserted document with ID '{inserted_id}' into index '{index_name}'")
+        return inserted_id
+    except NotFoundError as e:
+        logger.error(f"NotFoundError while inserting document into index '{index_name}': Index does not exist")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except RequestError as e:
+        logger.error(f"RequestError while inserting document into index '{index_name}': {e.error}")
+        logger.error(f"Error details: {e.info}")
+        logger.error(f"Document data: {document}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except ESConnectionError as e:
+        logger.error(f"ConnectionError while inserting document into index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while inserting document into index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
 
 
 async def get_document(index_name: str, doc_id: str) -> Dict[str, Any]:
@@ -97,9 +172,29 @@ async def get_document(index_name: str, doc_id: str) -> Dict[str, Any]:
     Raises:
         NotFoundError: 문서를 찾을 수 없는 경우
     """
-    client = get_es_client()
-    response = await client.get(index=index_name, id=doc_id)
-    return response["_source"]
+    try:
+        logger.info(f"Getting document '{doc_id}' from index '{index_name}'")
+        client = get_es_client()
+        response = await client.get(index=index_name, id=doc_id)
+        logger.info(f"Successfully retrieved document '{doc_id}' from index '{index_name}'")
+        return response["_source"]
+    except NotFoundError as e:
+        logger.error(f"NotFoundError while getting document '{doc_id}' from index '{index_name}': Document or index does not exist")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except RequestError as e:
+        logger.error(f"RequestError while getting document '{doc_id}' from index '{index_name}': {e.error}")
+        logger.error(f"Error details: {e.info}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except ESConnectionError as e:
+        logger.error(f"ConnectionError while getting document '{doc_id}' from index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while getting document '{doc_id}' from index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
 
 
 async def update_document(index_name: str, doc_id: str, updated_fields: Dict[str, Any]) -> Dict[str, Any]:
@@ -114,13 +209,34 @@ async def update_document(index_name: str, doc_id: str, updated_fields: Dict[str
     Returns:
         Dict[str, Any]: ElasticSearch 응답
     """
-    client = get_es_client()
-    response = await client.update(
-        index=index_name,
-        id=doc_id,
-        body={"doc": updated_fields}
-    )
-    return response
+    try:
+        logger.info(f"Updating document '{doc_id}' in index '{index_name}' with fields: {updated_fields}")
+        client = get_es_client()
+        response = await client.update(
+            index=index_name,
+            id=doc_id,
+            body={"doc": updated_fields}
+        )
+        logger.info(f"Successfully updated document '{doc_id}' in index '{index_name}'")
+        return response
+    except NotFoundError as e:
+        logger.error(f"NotFoundError while updating document '{doc_id}' in index '{index_name}': Document or index does not exist")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except RequestError as e:
+        logger.error(f"RequestError while updating document '{doc_id}' in index '{index_name}': {e.error}")
+        logger.error(f"Error details: {e.info}")
+        logger.error(f"Updated fields: {updated_fields}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except ESConnectionError as e:
+        logger.error(f"ConnectionError while updating document '{doc_id}' in index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while updating document '{doc_id}' in index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
 
 
 async def delete_document(index_name: str, doc_id: str) -> Dict[str, Any]:
@@ -134,9 +250,29 @@ async def delete_document(index_name: str, doc_id: str) -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: ElasticSearch 응답
     """
-    client = get_es_client()
-    response = await client.delete(index=index_name, id=doc_id)
-    return response
+    try:
+        logger.info(f"Deleting document '{doc_id}' from index '{index_name}'")
+        client = get_es_client()
+        response = await client.delete(index=index_name, id=doc_id)
+        logger.info(f"Successfully deleted document '{doc_id}' from index '{index_name}'")
+        return response
+    except NotFoundError as e:
+        logger.error(f"NotFoundError while deleting document '{doc_id}' from index '{index_name}': Document or index does not exist")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except RequestError as e:
+        logger.error(f"RequestError while deleting document '{doc_id}' from index '{index_name}': {e.error}")
+        logger.error(f"Error details: {e.info}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except ESConnectionError as e:
+        logger.error(f"ConnectionError while deleting document '{doc_id}' from index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while deleting document '{doc_id}' from index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
 
 
 async def search_documents(
@@ -164,27 +300,48 @@ async def search_documents(
             }
         }
     """
-    client = get_es_client()
+    try:
+        logger.info(f"Searching documents in index '{index_name}' with query: {query}, size: {size}, from: {from_}")
+        client = get_es_client()
 
-    body = {
-        "query": query if query else {"match_all": {}},
-        "size": size,
-        "from": from_
-    }
-
-    response = await client.search(index=index_name, body=body)
-
-    # Extract documents with metadata
-    documents = []
-    for hit in response["hits"]["hits"]:
-        doc = {
-            "_id": hit["_id"],
-            "_score": hit["_score"],
-            **hit["_source"]
+        body = {
+            "query": query if query else {"match_all": {}},
+            "size": size,
+            "from": from_
         }
-        documents.append(doc)
 
-    return documents
+        response = await client.search(index=index_name, body=body)
+
+        # Extract documents with metadata
+        documents = []
+        for hit in response["hits"]["hits"]:
+            doc = {
+                "_id": hit["_id"],
+                "_score": hit["_score"],
+                **hit["_source"]
+            }
+            documents.append(doc)
+
+        logger.info(f"Successfully searched index '{index_name}', found {len(documents)} documents")
+        return documents
+    except NotFoundError as e:
+        logger.error(f"NotFoundError while searching in index '{index_name}': Index does not exist")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except RequestError as e:
+        logger.error(f"RequestError while searching in index '{index_name}': {e.error}")
+        logger.error(f"Error details: {e.info}")
+        logger.error(f"Query: {query}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except ESConnectionError as e:
+        logger.error(f"ConnectionError while searching in index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while searching in index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
 
 
 async def bulk_insert_documents(index_name: str, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -198,13 +355,43 @@ async def bulk_insert_documents(index_name: str, documents: List[Dict[str, Any]]
     Returns:
         Dict[str, Any]: 대량 삽입 작업의 상세 정보가 포함된 ElasticSearch 응답
     """
-    client = get_es_client()
+    try:
+        logger.info(f"Bulk inserting {len(documents)} documents into index '{index_name}'")
+        client = get_es_client()
 
-    # Prepare bulk operations
-    operations = []
-    for doc in documents:
-        operations.append({"index": {"_index": index_name}})
-        operations.append(doc)
+        # Prepare bulk operations
+        operations = []
+        for doc in documents:
+            operations.append({"index": {"_index": index_name}})
+            operations.append(doc)
 
-    response = await client.bulk(operations=operations)
-    return response
+        response = await client.bulk(operations=operations)
+
+        # Log error details if any
+        if response.get("errors"):
+            error_items = [item for item in response.get("items", []) if "error" in item.get("index", {})]
+            logger.warning(f"Bulk insert completed with errors. {len(error_items)} items failed")
+            for idx, item in enumerate(error_items[:5]):  # Log first 5 errors
+                logger.error(f"Bulk error {idx+1}: {item['index']['error']}")
+        else:
+            logger.info(f"Successfully bulk inserted {len(documents)} documents into index '{index_name}'")
+
+        return response
+    except NotFoundError as e:
+        logger.error(f"NotFoundError while bulk inserting into index '{index_name}': Index does not exist")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except RequestError as e:
+        logger.error(f"RequestError while bulk inserting into index '{index_name}': {e.error}")
+        logger.error(f"Error details: {e.info}")
+        logger.error(f"Number of documents: {len(documents)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except ESConnectionError as e:
+        logger.error(f"ConnectionError while bulk inserting into index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error while bulk inserting into index '{index_name}': {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise
