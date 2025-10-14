@@ -1,6 +1,5 @@
 from ..db.es_database import get_es_client
 from typing import List, Dict, Any, Optional
-from elasticsearch import NotFoundError, RequestError, ConnectionError as ESConnectionError
 from ..logging_config import get_logger
 import traceback
 
@@ -27,10 +26,9 @@ async def create_index(index_name: str, mappings: Optional[Dict[str, Any]] = Non
         }
     """
     try:
+        logger.info(f"Creating index '{index_name}' with mappings: {mappings}")
         client = get_es_client()
         body = {}
-
-        logger.info(f"Creating index '{index_name}' with mappings: {mappings}")
 
         if mappings:
             body["mappings"] = mappings
@@ -40,17 +38,12 @@ async def create_index(index_name: str, mappings: Optional[Dict[str, Any]] = Non
         response = await client.indices.create(index=index_name, body=body)
         logger.info(f"Successfully created index '{index_name}'")
         return response
-    except RequestError as e:
-        logger.error(f"RequestError while creating index '{index_name}': {e.error}")
-        logger.error(f"Error details: {e.info}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except ESConnectionError as e:
-        logger.error(f"ConnectionError while creating index '{index_name}': {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error while creating index '{index_name}': {str(e)}")
+        logger.error(f"Error while creating index '{index_name}'")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        if hasattr(e, 'info'):
+            logger.error(f"Elasticsearch error details: {e.info}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
@@ -71,21 +64,12 @@ async def delete_index(index_name: str) -> Dict[str, Any]:
         response = await client.indices.delete(index=index_name)
         logger.info(f"Successfully deleted index '{index_name}'")
         return response
-    except NotFoundError as e:
-        logger.error(f"NotFoundError while deleting index '{index_name}': Index does not exist")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except RequestError as e:
-        logger.error(f"RequestError while deleting index '{index_name}': {e.error}")
-        logger.error(f"Error details: {e.info}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except ESConnectionError as e:
-        logger.error(f"ConnectionError while deleting index '{index_name}': {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error while deleting index '{index_name}': {str(e)}")
+        logger.error(f"Error while deleting index '{index_name}'")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        if hasattr(e, 'info'):
+            logger.error(f"Elasticsearch error details: {e.info}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
@@ -104,17 +88,12 @@ async def list_indices() -> List[str]:
         indices = [index["index"] for index in response]
         logger.info(f"Successfully retrieved {len(indices)} indices")
         return indices
-    except RequestError as e:
-        logger.error(f"RequestError while listing indices: {e.error}")
-        logger.error(f"Error details: {e.info}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except ESConnectionError as e:
-        logger.error(f"ConnectionError while listing indices: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error while listing indices: {str(e)}")
+        logger.error(f"Error while listing indices")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        if hasattr(e, 'info'):
+            logger.error(f"Elasticsearch error details: {e.info}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
@@ -138,22 +117,13 @@ async def insert_document(index_name: str, document: Dict[str, Any], doc_id: Opt
         inserted_id = response["_id"]
         logger.info(f"Successfully inserted document with ID '{inserted_id}' into index '{index_name}'")
         return inserted_id
-    except NotFoundError as e:
-        logger.error(f"NotFoundError while inserting document into index '{index_name}': Index does not exist")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except RequestError as e:
-        logger.error(f"RequestError while inserting document into index '{index_name}': {e.error}")
-        logger.error(f"Error details: {e.info}")
-        logger.error(f"Document data: {document}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except ESConnectionError as e:
-        logger.error(f"ConnectionError while inserting document into index '{index_name}': {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error while inserting document into index '{index_name}': {str(e)}")
+        logger.error(f"Error while inserting document into index '{index_name}'")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        logger.error(f"Document data: {document}")
+        if hasattr(e, 'info'):
+            logger.error(f"Elasticsearch error details: {e.info}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
@@ -178,21 +148,12 @@ async def get_document(index_name: str, doc_id: str) -> Dict[str, Any]:
         response = await client.get(index=index_name, id=doc_id)
         logger.info(f"Successfully retrieved document '{doc_id}' from index '{index_name}'")
         return response["_source"]
-    except NotFoundError as e:
-        logger.error(f"NotFoundError while getting document '{doc_id}' from index '{index_name}': Document or index does not exist")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except RequestError as e:
-        logger.error(f"RequestError while getting document '{doc_id}' from index '{index_name}': {e.error}")
-        logger.error(f"Error details: {e.info}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except ESConnectionError as e:
-        logger.error(f"ConnectionError while getting document '{doc_id}' from index '{index_name}': {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error while getting document '{doc_id}' from index '{index_name}': {str(e)}")
+        logger.error(f"Error while getting document '{doc_id}' from index '{index_name}'")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        if hasattr(e, 'info'):
+            logger.error(f"Elasticsearch error details: {e.info}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
@@ -219,22 +180,13 @@ async def update_document(index_name: str, doc_id: str, updated_fields: Dict[str
         )
         logger.info(f"Successfully updated document '{doc_id}' in index '{index_name}'")
         return response
-    except NotFoundError as e:
-        logger.error(f"NotFoundError while updating document '{doc_id}' in index '{index_name}': Document or index does not exist")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except RequestError as e:
-        logger.error(f"RequestError while updating document '{doc_id}' in index '{index_name}': {e.error}")
-        logger.error(f"Error details: {e.info}")
-        logger.error(f"Updated fields: {updated_fields}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except ESConnectionError as e:
-        logger.error(f"ConnectionError while updating document '{doc_id}' in index '{index_name}': {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error while updating document '{doc_id}' in index '{index_name}': {str(e)}")
+        logger.error(f"Error while updating document '{doc_id}' in index '{index_name}'")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        logger.error(f"Updated fields: {updated_fields}")
+        if hasattr(e, 'info'):
+            logger.error(f"Elasticsearch error details: {e.info}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
@@ -256,21 +208,12 @@ async def delete_document(index_name: str, doc_id: str) -> Dict[str, Any]:
         response = await client.delete(index=index_name, id=doc_id)
         logger.info(f"Successfully deleted document '{doc_id}' from index '{index_name}'")
         return response
-    except NotFoundError as e:
-        logger.error(f"NotFoundError while deleting document '{doc_id}' from index '{index_name}': Document or index does not exist")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except RequestError as e:
-        logger.error(f"RequestError while deleting document '{doc_id}' from index '{index_name}': {e.error}")
-        logger.error(f"Error details: {e.info}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except ESConnectionError as e:
-        logger.error(f"ConnectionError while deleting document '{doc_id}' from index '{index_name}': {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error while deleting document '{doc_id}' from index '{index_name}': {str(e)}")
+        logger.error(f"Error while deleting document '{doc_id}' from index '{index_name}'")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        if hasattr(e, 'info'):
+            logger.error(f"Elasticsearch error details: {e.info}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
@@ -324,22 +267,13 @@ async def search_documents(
 
         logger.info(f"Successfully searched index '{index_name}', found {len(documents)} documents")
         return documents
-    except NotFoundError as e:
-        logger.error(f"NotFoundError while searching in index '{index_name}': Index does not exist")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except RequestError as e:
-        logger.error(f"RequestError while searching in index '{index_name}': {e.error}")
-        logger.error(f"Error details: {e.info}")
-        logger.error(f"Query: {query}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except ESConnectionError as e:
-        logger.error(f"ConnectionError while searching in index '{index_name}': {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error while searching in index '{index_name}': {str(e)}")
+        logger.error(f"Error while searching in index '{index_name}'")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        logger.error(f"Query: {query}")
+        if hasattr(e, 'info'):
+            logger.error(f"Elasticsearch error details: {e.info}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
@@ -377,21 +311,12 @@ async def bulk_insert_documents(index_name: str, documents: List[Dict[str, Any]]
             logger.info(f"Successfully bulk inserted {len(documents)} documents into index '{index_name}'")
 
         return response
-    except NotFoundError as e:
-        logger.error(f"NotFoundError while bulk inserting into index '{index_name}': Index does not exist")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except RequestError as e:
-        logger.error(f"RequestError while bulk inserting into index '{index_name}': {e.error}")
-        logger.error(f"Error details: {e.info}")
-        logger.error(f"Number of documents: {len(documents)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
-    except ESConnectionError as e:
-        logger.error(f"ConnectionError while bulk inserting into index '{index_name}': {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error while bulk inserting into index '{index_name}': {str(e)}")
+        logger.error(f"Error while bulk inserting into index '{index_name}'")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        logger.error(f"Number of documents: {len(documents)}")
+        if hasattr(e, 'info'):
+            logger.error(f"Elasticsearch error details: {e.info}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise
