@@ -6,9 +6,9 @@
 - Elasticsearch와 Qdrant에 동시 저장
 """
 
-from fastapi import APIRouter, HTTPException, status, Body, Depends
-from typing import Dict, Any, Optional
-from ..services import es_document_service, qdrant_document_service
+from fastapi import APIRouter, HTTPException, status, Body, Depends, Query
+from typing import Dict, Any, Optional, List
+from ..services import document_service, es_service
 from ..db.database import get_qdrant_db
 from qdrant_client import QdrantClient
 from ..logging_config import get_logger
@@ -43,47 +43,18 @@ async def upload_knowledge_document(
     try:
         logger.info(f"Received document upload request: '{title}'")
 
-        # Step 1: 텍스트를 청크로 분할
-        chunks = es_document_service.split_text_into_chunks(
-            text=content,
+        result = await document_service.save_document(
+            title=title,
+            content=content,
+            qdrant_client=qdrant_client,
+            metadata=metadata,
             chunk_size=chunk_size,
             overlap=overlap
         )
 
-        if not chunks:
-            raise ValueError("No valid chunks created from content")
-
-        logger.info(f"Created {len(chunks)} chunks")
-
-        # Step 2: Elasticsearch에 저장 (원본 텍스트)
-        es_chunk_ids = await es_document_service.save_chunks_to_elasticsearch(
-            index_name="knowledge_base",
-            title=title,
-            chunks=chunks,
-            metadata=metadata
-        )
-
-        # Step 3: Qdrant에 저장 (임베딩)
-        qdrant_point_ids = await qdrant_document_service.save_chunks_to_qdrant(
-            client=qdrant_client,
-            collection_name="knowledge",
-            title=title,
-            chunks=chunks,
-            metadata=metadata
-        )
-
         return {
             "message": "Document uploaded successfully",
-            "title": title,
-            "total_chunks": len(chunks),
-            "elasticsearch": {
-                "index_name": "knowledge_base",
-                "chunk_ids": es_chunk_ids
-            },
-            "qdrant": {
-                "collection_name": "knowledge",
-                "point_ids": qdrant_point_ids
-            }
+            **result
         }
 
     except Exception as e:
@@ -119,50 +90,24 @@ async def upload_knowledge_from_file(
         logger.info(f"Reading file: {file_path}")
 
         # 파일 읽기
-        content = await es_document_service.read_file_content(file_path)
+        content = await document_service.read_file_content(file_path)
 
         # 제목이 없으면 파일명 사용
         doc_title = title or os.path.basename(file_path)
 
-        # 청크 분할
-        chunks = es_document_service.split_text_into_chunks(
-            text=content,
+        # 문서 저장
+        result = await document_service.save_document(
+            title=doc_title,
+            content=content,
+            qdrant_client=qdrant_client,
+            metadata=metadata,
             chunk_size=chunk_size,
             overlap=overlap
         )
 
-        if not chunks:
-            raise ValueError("No valid chunks created from file content")
-
-        # Elasticsearch 저장
-        es_chunk_ids = await es_document_service.save_chunks_to_elasticsearch(
-            index_name="knowledge_base",
-            title=doc_title,
-            chunks=chunks,
-            metadata=metadata
-        )
-
-        # Qdrant 저장
-        qdrant_point_ids = await qdrant_document_service.save_chunks_to_qdrant(
-            client=qdrant_client,
-            collection_name="knowledge",
-            title=doc_title,
-            chunks=chunks,
-            metadata=metadata
-        )
-
         return {
             "message": f"File '{file_path}' uploaded successfully",
-            "title": doc_title,
-            "total_chunks": len(chunks),
-            "elasticsearch": {
-                "index_name": "knowledge_base",
-                "chunk_ids": es_chunk_ids
-            },
-            "qdrant": {
-                "collection_name": "knowledge",
-                "point_ids": qdrant_point_ids
-            }
+            **result
         }
 
     except FileNotFoundError:
@@ -175,4 +120,105 @@ async def upload_knowledge_from_file(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to upload file: {str(e)}"
+        )
+
+
+@router.get(
+    "/documents/list",
+    summary="저장된 문서 목록 조회",
+    description="Elasticsearch와 Qdrant에 저장된 문서들을 조회합니다."
+)
+async def list_documents(
+    title: Optional[str] = Query(None, description="문서 제목으로 필터링"),
+    limit: int = Query(10, description="조회할 문서 수"),
+    qdrant_client: QdrantClient = Depends(get_qdrant_db)
+):
+    """
+    저장된 문서 목록 조회
+    """
+    try:
+        # Elasticsearch에서 문서 조회
+        if title:
+            query = {"match": {"title": title}}
+        else:
+            query = {"match_all": {}}
+
+        es_docs = await es_service.search_documents(
+            index_name="knowledge_base",
+            query=query,
+            size=limit
+        )
+
+        # Qdrant에서 포인트 조회
+        qdrant_points = qdrant_client.scroll(
+            collection_name="knowledge",
+            limit=limit,
+            with_payload=True,
+            with_vectors=False
+        )
+
+        return {
+            "elasticsearch": {
+                "total": len(es_docs),
+                "documents": es_docs
+            },
+            "qdrant": {
+                "total": len(qdrant_points[0]),
+                "points": [
+                    {
+                        "id": point.id,
+                        "payload": point.payload
+                    }
+                    for point in qdrant_points[0]
+                ]
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to list documents: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to list documents: {str(e)}"
+        )
+
+
+@router.get(
+    "/documents/stats",
+    summary="문서 통계",
+    description="저장된 문서의 통계 정보를 조회합니다."
+)
+async def get_document_stats(
+    qdrant_client: QdrantClient = Depends(get_qdrant_db)
+):
+    """
+    문서 통계 정보 조회
+    """
+    try:
+        # Elasticsearch 통계
+        es_stats = await es_service.search_documents(
+            index_name="knowledge_base",
+            query={"match_all": {}},
+            size=0  # 카운트만
+        )
+
+        # Qdrant 통계
+        qdrant_info = qdrant_client.get_collection(collection_name="knowledge")
+
+        return {
+            "elasticsearch": {
+                "index_name": "knowledge_base",
+                "total_documents": len(es_stats)
+            },
+            "qdrant": {
+                "collection_name": "knowledge",
+                "points_count": qdrant_info.points_count,
+                "vector_size": qdrant_info.config.params.vectors.size
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get stats: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to get stats: {str(e)}"
         )
