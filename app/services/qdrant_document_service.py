@@ -30,13 +30,20 @@ async def create_embeddings_batch(texts: List[str]) -> List[List[float]]:
     try:
         logger.info(f"Creating embeddings for {len(texts)} texts")
 
-        # Qwen 임베딩 API 호출
-        response = await get_embedding_from_lms(
-            EmbeddingRequest(input=texts)
-        )
+        embeddings = []
 
-        # 응답에서 임베딩 벡터 추출
-        embeddings = [item["embedding"] for item in response["data"]]
+        # 각 텍스트를 개별적으로 임베딩 생성
+        for idx, text in enumerate(texts):
+            logger.info(f"Creating embedding {idx+1}/{len(texts)}")
+
+            # Qwen 임베딩 API 호출 (단일 텍스트)
+            response = await get_embedding_from_lms(
+                EmbeddingRequest(input=text)
+            )
+
+            # 응답에서 임베딩 벡터 추출
+            embedding = response["data"][0]["embedding"]
+            embeddings.append(embedding)
 
         logger.info(f"Successfully created {len(embeddings)} embeddings")
         return embeddings
