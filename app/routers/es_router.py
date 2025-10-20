@@ -34,10 +34,25 @@ async def get_indices():
     description="새로운 Elasticsearch 인덱스를 생성합니다. 선택적으로 매핑(스키마), 샤드, 레플리카 개수를 지정할 수 있습니다."
 )
 async def create_index(
-    index_name: str = Query(..., description="생성할 인덱스 이름"),
-    mappings: Optional[Dict[str, Any]] = Body(None, description="인덱스 매핑 (스키마 정의)"),
-    number_of_shards: int = Body(3, description="Primary Shard 개수 (기본값: 3, 최소값: 1)"),
-    number_of_replicas: int = Body(1, description="Replica Shard 개수 (기본값: 1, 최소값: 0, 권장 최대값: 2)")
+    index_name: str = Query(..., description="생성할 인덱스 이름", example="my_index"),
+    mappings: Optional[Dict[str, Any]] = Body(
+        None,
+        description="인덱스 매핑 (스키마 정의)",
+        example={
+            "properties": {
+                "title": {"type": "text"},
+                "content": {"type": "text"},
+                "embedding": {
+                    "type": "dense_vector",
+                    "dims": 768,
+                    "index": True,
+                    "similarity": "cosine"
+                }
+            }
+        }
+    ),
+    number_of_shards: int = Body(3, description="Primary Shard 개수 (기본값: 3, 최소값: 1)", example=3),
+    number_of_replicas: int = Body(1, description="Replica Shard 개수 (기본값: 1, 최소값: 0, 권장 최대값: 2)", example=1)
 ):
     """
     새로운 인덱스를 생성합니다.
