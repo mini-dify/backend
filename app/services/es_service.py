@@ -6,16 +6,26 @@ import traceback
 logger = get_logger(__name__)
 
 
-async def create_index(index_name: str, mappings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+async def create_index(
+    index_name: str,
+    mappings: Optional[Dict[str, Any]] = None,
+    number_of_shards: int = 3,
+    number_of_replicas: int = 1
+) -> Dict[str, Any]:
     """
     ElasticSearch에 새로운 인덱스를 생성합니다.
 
     Parameters:
         index_name (str): 생성할 인덱스 이름
         mappings (Optional[Dict[str, Any]]): 인덱스 매핑 (스키마 정의). None인 경우 동적 매핑이 사용됩니다.
+        number_of_shards (int): Primary Shard 개수 (기본값: 3)
+        number_of_replicas (int): Replica Shard 개수 (기본값: 1)
 
     Returns:
         Dict[str, Any]: ElasticSearch 응답
+
+    Raises:
+        ValueError: 샤드/레플리카 개수가 유효하지 않은 경우
 
     Example mappings:
         {
@@ -26,18 +36,49 @@ async def create_index(index_name: str, mappings: Optional[Dict[str, Any]] = Non
         }
     """
     try:
-        logger.info(f"Creating index '{index_name}' with mappings: {mappings}")
+        # 입력값 검증
+        if not isinstance(number_of_shards, int) or number_of_shards < 1:
+            raise ValueError(f"number_of_shards must be a positive integer, got: {number_of_shards}")
+
+        if not isinstance(number_of_replicas, int) or number_of_replicas < 0:
+            raise ValueError(f"number_of_replicas must be a non-negative integer, got: {number_of_replicas}")
+
+        # 레플리카 개수 제한 경고 (노드 3개 기준)
+        if number_of_replicas > 2:
+            logger.warning(
+                f"number_of_replicas ({number_of_replicas}) exceeds recommended maximum (2) "
+                f"for a 3-node cluster. Some replicas may not be allocated."
+            )
+
+        logger.info(
+            f"Creating index '{index_name}' with "
+            f"shards: {number_of_shards}, replicas: {number_of_replicas}, mappings: {mappings}"
+        )
+
         client = get_es_client()
         body = {}
 
+        # Settings 추가
+        body["settings"] = {
+            "number_of_shards": number_of_shards,
+            "number_of_replicas": number_of_replicas
+        }
+
+        # Mappings 추가
         if mappings:
             body["mappings"] = mappings
 
         logger.info(f"Creating body: {body}")
 
         response = await client.indices.create(index=index_name, body=body)
-        logger.info(f"Successfully created index '{index_name}'")
+        logger.info(
+            f"Successfully created index '{index_name}' with "
+            f"{number_of_shards} shards and {number_of_replicas} replicas"
+        )
         return response
+    except ValueError as e:
+        logger.error(f"Validation error for index '{index_name}': {str(e)}")
+        raise
     except Exception as e:
         logger.error(f"Error while creating index '{index_name}'")
         logger.error(f"Error type: {type(e).__name__}")

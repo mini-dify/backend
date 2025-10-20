@@ -5,6 +5,8 @@ from typing import Dict, Any, Optional, List
 class CreateIndexRequest(BaseModel):
     index_name: str
     mappings: Optional[Dict[str, Any]] = None
+    number_of_shards: int = 3
+    number_of_replicas: int = 1
 
 
 class InsertDocumentRequest(BaseModel):

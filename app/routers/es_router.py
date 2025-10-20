@@ -31,11 +31,13 @@ async def get_indices():
     "/indices",
     status_code=status.HTTP_201_CREATED,
     summary="인덱스 생성",
-    description="새로운 Elasticsearch 인덱스를 생성합니다. 선택적으로 매핑(스키마)을 지정할 수 있습니다."
+    description="새로운 Elasticsearch 인덱스를 생성합니다. 선택적으로 매핑(스키마), 샤드, 레플리카 개수를 지정할 수 있습니다."
 )
 async def create_index(
     index_name: str = Query(..., description="생성할 인덱스 이름"),
-    mappings: Optional[Dict[str, Any]] = Body(None, description="인덱스 매핑 (스키마 정의)")
+    mappings: Optional[Dict[str, Any]] = Body(None, description="인덱스 매핑 (스키마 정의)"),
+    number_of_shards: int = Body(3, description="Primary Shard 개수 (기본값: 3, 최소값: 1)"),
+    number_of_replicas: int = Body(1, description="Replica Shard 개수 (기본값: 1, 최소값: 0, 권장 최대값: 2)")
 ):
     """
     새로운 인덱스를 생성합니다.
@@ -43,15 +45,48 @@ async def create_index(
     Parameters:
         index_name (str): 생성할 인덱스 이름
         mappings (Optional[Dict[str, Any]]): 인덱스 매핑 정보 (선택사항)
+        number_of_shards (int): Primary Shard 개수 (기본값: 3)
+        number_of_replicas (int): Replica Shard 개수 (기본값: 1)
 
     Returns:
         Dict: 생성 결과 메시지 및 응답
+
+    Example:
+        {
+            "index_name": "my_index",
+            "mappings": {
+                "properties": {
+                    "title": {"type": "text"},
+                    "content": {"type": "text"}
+                }
+            },
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
     """
     try:
-        logger.info(f"Creating index: {index_name}")
-        response = await es_service.create_index(index_name, mappings)
+        logger.info(
+            f"Creating index: {index_name} with "
+            f"shards: {number_of_shards}, replicas: {number_of_replicas}"
+        )
+        response = await es_service.create_index(
+            index_name=index_name,
+            mappings=mappings,
+            number_of_shards=number_of_shards,
+            number_of_replicas=number_of_replicas
+        )
         logger.info(f"Successfully created index: {index_name}")
-        return {"message": f"Index '{index_name}' created successfully.", "response": response}
+        return {
+            "message": f"Index '{index_name}' created successfully.",
+            "settings": {
+                "number_of_shards": number_of_shards,
+                "number_of_replicas": number_of_replicas
+            },
+            "response": response
+        }
+    except ValueError as e:
+        logger.error(f"Validation error for index {index_name}: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to create index {index_name}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
