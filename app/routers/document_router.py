@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/document/upload",
+    "/upload",
     status_code=status.HTTP_201_CREATED,
     summary="지식 문서 업로드",
     description="문서를 청크로 분할하여 Elasticsearch와 Qdrant에 동시 저장합니다."
@@ -66,7 +66,7 @@ async def upload_knowledge_document(
 
 
 @router.post(
-    "/document/upload-file",
+    "/upload-file",
     status_code=status.HTTP_201_CREATED,
     summary="파일로 지식 문서 업로드",
     description="파일 경로를 받아 텍스트를 읽고 Elasticsearch와 Qdrant에 저장합니다."
@@ -124,7 +124,7 @@ async def upload_knowledge_from_file(
 
 
 @router.get(
-    "/documents/list",
+    "/list",
     summary="저장된 문서 목록 조회",
     description="Elasticsearch와 Qdrant에 저장된 문서들을 조회합니다."
 )
@@ -183,7 +183,7 @@ async def list_documents(
 
 
 @router.get(
-    "/documents/stats",
+    "/stats",
     summary="문서 통계",
     description="저장된 문서의 통계 정보를 조회합니다."
 )

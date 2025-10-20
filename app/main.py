@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends
-from .routers import mongodb_router, qdrant_router, es_router, developCellApi_embedding, developCellApi_llm, developCellApi_document, developCellApi_search
+from .routers import mongodb_router, qdrant_router, es_router, developCellApi_embedding, developCellApi_llm, document_router, search_router
 from .db.database import close_mongo_connection, get_database, get_qdrant_db
 from .security import check_auth
 from .logging_config import setup_logging, get_logger
@@ -34,8 +34,8 @@ app.include_router(es_router.router, prefix="/elasticsearch", tags=["Elasticsear
 
 app.include_router(developCellApi_embedding.router, prefix="/developCell", tags=["DevelopCell-Embedding"])
 app.include_router(developCellApi_llm.router, prefix="/developCell", tags=["DevelopCell-LLM"])
-app.include_router(developCellApi_document.router, prefix="/developCell", tags=["DevelopCell-Document"])
-app.include_router(developCellApi_search.router, prefix="/developCell", tags=["DevelopCell-Search"])
+app.include_router(document_router.router, prefix="/document", tags=["Document"])
+app.include_router(search_router.router, prefix="/search", tags=["Search"])
 
 
 @app.get("/")

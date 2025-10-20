@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/search/keyword",
+    "/keyword",
     summary="키워드 검색 (BM25)",
     description="Elasticsearch BM25 알고리즘을 사용한 키워드 기반 검색입니다."
 )
@@ -63,7 +63,7 @@ async def search_by_keyword(
 
 
 @router.post(
-    "/search/vector",
+    "/vector",
     summary="벡터 검색 (코사인 유사도)",
     description="Qdrant를 사용한 벡터 기반 의미적 검색입니다."
 )
@@ -109,7 +109,7 @@ async def search_by_vector(
 
 
 @router.post(
-    "/search/hybrid",
+    "/hybrid",
     summary="하이브리드 검색 (BM25 + 코사인)",
     description="키워드 검색과 벡터 검색을 결합한 하이브리드 검색입니다."
 )
@@ -174,7 +174,7 @@ async def search_by_hybrid(
 
 
 @router.post(
-    "/search/compare",
+    "/compare",
     summary="검색 방법 비교",
     description="키워드, 벡터, 하이브리드 검색 결과를 한 번에 비교합니다."
 )
