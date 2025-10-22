@@ -1,12 +1,23 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional, List
 
 
 class CreateIndexRequest(BaseModel):
-    index_name: str
-    mappings: Optional[Dict[str, Any]] = None
-    number_of_shards: int = 3
-    number_of_replicas: int = 1
+    index_name: str = Field(
+        ...,
+        description="생성할 인덱스 이름",
+        example="my_index"
+    )
+    number_of_shards: int = Field(
+        3,
+        description="Primary Shard 개수 (기본값: 3, 최소값: 1)",
+        example=3
+    )
+    number_of_replicas: int = Field(
+        1,
+        description="Replica Shard 개수 (기본값: 1, 최소값: 0, 권장 최대값: 2)",
+        example=1
+    )
 
 
 class InsertDocumentRequest(BaseModel):

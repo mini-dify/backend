@@ -8,16 +8,15 @@ logger = get_logger(__name__)
 
 async def create_index(
     index_name: str,
-    mappings: Optional[Dict[str, Any]] = None,
     number_of_shards: int = 3,
     number_of_replicas: int = 1
 ) -> Dict[str, Any]:
     """
     ElasticSearch에 새로운 인덱스를 생성합니다.
+    고정된 스키마(title, content, embedding)를 사용합니다.
 
     Parameters:
         index_name (str): 생성할 인덱스 이름
-        mappings (Optional[Dict[str, Any]]): 인덱스 매핑 (스키마 정의). None인 경우 동적 매핑이 사용됩니다.
         number_of_shards (int): Primary Shard 개수 (기본값: 3)
         number_of_replicas (int): Replica Shard 개수 (기본값: 1)
 
@@ -26,14 +25,6 @@ async def create_index(
 
     Raises:
         ValueError: 샤드/레플리카 개수가 유효하지 않은 경우
-
-    Example mappings:
-        {
-            "properties": {
-                "title": {"type": "text"},
-                "timestamp": {"type": "date"}
-            }
-        }
     """
     try:
         # 입력값 검증
@@ -50,23 +41,37 @@ async def create_index(
                 f"for a 3-node cluster. Some replicas may not be allocated."
             )
 
+        # 고정된 mappings 설정
+        mappings = {
+            "properties": {
+                "title": {
+                    "type": "text"
+                },
+                "content": {
+                    "type": "text"
+                },
+                "embedding": {
+                    "type": "dense_vector",
+                    "dims": 768,
+                    "index": True,
+                    "similarity": "cosine"
+                }
+            }
+        }
+
         logger.info(
             f"Creating index '{index_name}' with "
-            f"shards: {number_of_shards}, replicas: {number_of_replicas}, mappings: {mappings}"
+            f"shards: {number_of_shards}, replicas: {number_of_replicas}"
         )
 
         client = get_es_client()
-        body = {}
-
-        # Settings 추가
-        body["settings"] = {
-            "number_of_shards": number_of_shards,
-            "number_of_replicas": number_of_replicas
+        body = {
+            "settings": {
+                "number_of_shards": number_of_shards,
+                "number_of_replicas": number_of_replicas
+            },
+            "mappings": mappings
         }
-
-        # Mappings 추가
-        if mappings:
-            body["mappings"] = mappings
 
         logger.info(f"Creating body: {body}")
 
