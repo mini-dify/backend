@@ -1,7 +1,14 @@
-from fastapi import APIRouter, status, HTTPException, Query, Body
+from fastapi import APIRouter, status, HTTPException, Query, Body, Path
 from typing import List, Dict, Any, Optional
 from ..services import es_service
-from ..models.elasticsearch import CreateIndexRequest
+from ..models.elasticsearch import (
+    CreateIndexRequest,
+    DeleteIndexRequest,
+    InsertDocumentRequest,
+    UpdateDocumentRequest,
+    SearchRequest,
+    BulkInsertRequest
+)
 from elasticsearch import NotFoundError
 from ..logging_config import get_logger
 
@@ -16,12 +23,6 @@ router = APIRouter()
     description="Elasticsearch에 존재하는 모든 인덱스의 이름을 조회합니다."
 )
 async def get_indices():
-    """
-    ElasticSearch의 모든 인덱스 목록을 조회합니다.
-
-    Returns:
-        List[str]: 인덱스 이름 목록
-    """
     logger.info("Fetching Elasticsearch indices list")
     indices = await es_service.list_indices()
     logger.info(f"Successfully fetched {len(indices)} indices")
@@ -35,19 +36,6 @@ async def get_indices():
     description="새로운 Elasticsearch 인덱스를 생성합니다. 고정된 스키마(title, content, embedding)로 생성되며, 샤드와 레플리카 개수를 지정할 수 있습니다."
 )
 async def create_index(request: CreateIndexRequest):
-    """
-    새로운 인덱스를 생성합니다.
-    고정된 스키마(title, content, embedding)를 사용합니다.
-
-    Parameters:
-        request (CreateIndexRequest): 인덱스 생성 요청 데이터
-            - index_name (str): 생성할 인덱스 이름
-            - number_of_shards (int): Primary Shard 개수 (기본값: 3)
-            - number_of_replicas (int): Replica Shard 개수 (기본값: 1)
-
-    Returns:
-        Dict: 생성 결과 메시지 및 응답
-    """
     try:
         logger.info(
             f"Creating index: {request.index_name} with "
@@ -81,31 +69,22 @@ async def create_index(request: CreateIndexRequest):
 
 
 @router.delete(
-    "/indices/{index_name}",
+    "/indices",
     status_code=status.HTTP_200_OK,
     summary="인덱스 삭제",
     description="지정된 Elasticsearch 인덱스를 삭제합니다."
 )
-async def delete_index(index_name: str):
-    """
-    인덱스를 삭제합니다.
-
-    Parameters:
-        index_name (str): 삭제할 인덱스 이름
-
-    Returns:
-        Dict: 삭제 결과 메시지 및 응답
-    """
+async def delete_index(request: DeleteIndexRequest):
     try:
-        logger.info(f"Deleting index: {index_name}")
-        response = await es_service.delete_index(index_name)
-        logger.info(f"Successfully deleted index: {index_name}")
-        return {"message": f"Index '{index_name}' deleted successfully.", "response": response}
+        logger.info(f"Deleting index: {request.index_name}")
+        response = await es_service.delete_index(request.index_name)
+        logger.info(f"Successfully deleted index: {request.index_name}")
+        return {"message": f"Index '{request.index_name}' deleted successfully.", "response": response}
     except NotFoundError:
-        logger.warning(f"Index not found: {index_name}")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Index '{index_name}' not found.")
+        logger.warning(f"Index not found: {request.index_name}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Index '{request.index_name}' not found.")
     except Exception as e:
-        logger.error(f"Failed to delete index {index_name}: {str(e)}")
+        logger.error(f"Failed to delete index {request.index_name}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
@@ -115,29 +94,14 @@ async def delete_index(index_name: str):
     summary="문서 삽입",
     description="지정된 인덱스에 새로운 문서를 삽입합니다. 문서 ID는 선택 사항이며, 미제공 시 자동 생성됩니다."
 )
-async def insert_document(
-    index_name: str = Query(..., description="문서를 삽입할 인덱스 이름"),
-    document: Dict[str, Any] = Body(..., description="삽입할 문서 데이터"),
-    doc_id: Optional[str] = Query(None, description="문서 ID (미제공시 자동 생성)")
-):
-    """
-    인덱스에 문서를 삽입합니다.
-
-    Parameters:
-        index_name (str): 문서를 삽입할 인덱스 이름
-        document (Dict[str, Any]): 삽입할 문서 데이터
-        doc_id (Optional[str]): 문서 ID (선택사항)
-
-    Returns:
-        Dict: 삽입 결과 메시지 및 문서 ID
-    """
+async def insert_document(request: InsertDocumentRequest):
     try:
-        logger.info(f"Inserting document into index: {index_name}, doc_id: {doc_id}")
-        inserted_id = await es_service.insert_document(index_name, document, doc_id)
+        logger.info(f"Inserting document into index: {request.index_name}, doc_id: {request.doc_id}")
+        inserted_id = await es_service.insert_document(request.index_name, request.document, request.doc_id)
         logger.info(f"Successfully inserted document with ID: {inserted_id}")
         return {"message": "Document inserted successfully.", "id": inserted_id}
     except Exception as e:
-        logger.error(f"Failed to insert document into {index_name}: {str(e)}")
+        logger.error(f"Failed to insert document into {request.index_name}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
@@ -147,28 +111,14 @@ async def insert_document(
     summary="문서 조회",
     description="인덱스에서 문서 ID로 특정 문서를 조회합니다."
 )
-async def get_document(index_name: str, doc_id: str):
-    """
-    ID로 문서를 조회합니다.
-
-    Parameters:
-        index_name (str): 조회할 인덱스 이름
-        doc_id (str): 조회할 문서 ID
-
-    Returns:
-        Dict[str, Any]: 문서 데이터
-    """
+async def get_document(
+    index_name: str = Path(..., description="조회할 인덱스 이름", example="my_index"),
+    doc_id: str = Path(..., description="문서 ID", example="doc_12345")
+):
     try:
         logger.info(f"Fetching document from index: {index_name}, doc_id: {doc_id}")
         document = await es_service.get_document(index_name, doc_id)
-        logger.info(f"Successfully fetched document: {doc_id}")
         return document
-    except NotFoundError:
-        logger.warning(f"Document not found: {doc_id} in index {index_name}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document with ID '{doc_id}' not found in index '{index_name}'."
-        )
     except Exception as e:
         logger.error(f"Failed to fetch document {doc_id} from {index_name}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -181,32 +131,14 @@ async def get_document(index_name: str, doc_id: str):
     description="문서 ID로 특정 문서의 필드를 부분 수정합니다."
 )
 async def update_document(
-    index_name: str,
-    doc_id: str,
-    updated_fields: Dict[str, Any] = Body(..., description="수정할 필드 데이터")
+    index_name: str = Path(..., description="문서가 있는 인덱스 이름", example="my_index"),
+    doc_id: str = Path(..., description="수정할 문서 ID", example="doc_12345"),
+    request: UpdateDocumentRequest = Body(...)
 ):
-    """
-    ID로 문서를 수정합니다.
-
-    Parameters:
-        index_name (str): 문서가 있는 인덱스 이름
-        doc_id (str): 수정할 문서 ID
-        updated_fields (Dict[str, Any]): 수정할 필드 데이터
-
-    Returns:
-        Dict: 수정 결과 메시지 및 응답
-    """
     try:
         logger.info(f"Updating document in index: {index_name}, doc_id: {doc_id}")
-        response = await es_service.update_document(index_name, doc_id, updated_fields)
-        logger.info(f"Successfully updated document: {doc_id}")
+        response = await es_service.update_document(index_name, doc_id, request.updated_fields)
         return {"message": "Document updated successfully.", "response": response}
-    except NotFoundError:
-        logger.warning(f"Document not found for update: {doc_id} in index {index_name}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document with ID '{doc_id}' not found in index '{index_name}'."
-        )
     except Exception as e:
         logger.error(f"Failed to update document {doc_id} in {index_name}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -218,28 +150,14 @@ async def update_document(
     summary="문서 삭제",
     description="문서 ID로 특정 문서를 삭제합니다."
 )
-async def delete_document(index_name: str, doc_id: str):
-    """
-    ID로 문서를 삭제합니다.
-
-    Parameters:
-        index_name (str): 문서가 있는 인덱스 이름
-        doc_id (str): 삭제할 문서 ID
-
-    Returns:
-        Dict: 삭제 결과 메시지 및 응답
-    """
+async def delete_document(
+    index_name: str = Path(..., description="문서가 있는 인덱스 이름", example="my_index"),
+    doc_id: str = Path(..., description="삭제할 문서 ID", example="doc_12345")
+):
     try:
         logger.info(f"Deleting document from index: {index_name}, doc_id: {doc_id}")
         response = await es_service.delete_document(index_name, doc_id)
-        logger.info(f"Successfully deleted document: {doc_id}")
         return {"message": "Document deleted successfully.", "response": response}
-    except NotFoundError:
-        logger.warning(f"Document not found for deletion: {doc_id} in index {index_name}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document with ID '{doc_id}' not found in index '{index_name}'."
-        )
     except Exception as e:
         logger.error(f"Failed to delete document {doc_id} from {index_name}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -251,31 +169,14 @@ async def delete_document(index_name: str, doc_id: str):
     summary="문서 검색",
     description="Elasticsearch Query DSL을 사용하여 인덱스에서 문서를 검색합니다. 쿼리 미제공 시 전체 문서를 조회합니다."
 )
-async def search_documents(
-    index_name: str = Query(..., description="검색할 인덱스 이름"),
-    query: Optional[Dict[str, Any]] = Body(None, description="ElasticSearch 쿼리 DSL (미제공시 전체 조회)"),
-    size: int = Query(10, description="반환할 최대 결과 수"),
-    from_: int = Query(0, alias="from", description="페이지네이션 시작 오프셋")
-):
-    """
-    인덱스에서 문서를 검색합니다.
-
-    Parameters:
-        index_name (str): 검색할 인덱스 이름
-        query (Optional[Dict[str, Any]]): ElasticSearch 쿼리 DSL (선택사항)
-        size (int): 반환할 최대 결과 수 (기본값: 10)
-        from_ (int): 페이지네이션 시작 오프셋 (기본값: 0)
-
-    Returns:
-        List[Dict[str, Any]]: 검색된 문서 목록
-    """
+async def search_documents(request: SearchRequest):
     try:
-        logger.info(f"Searching documents in index: {index_name}, size: {size}, from: {from_}")
-        documents = await es_service.search_documents(index_name, query, size, from_)
+        logger.info(f"Searching documents in index: {request.index_name}, size: {request.size}, from: {request.from_}")
+        documents = await es_service.search_documents(request.index_name, request.query, request.size, request.from_)
         logger.info(f"Search completed, found {len(documents)} documents")
         return documents
     except Exception as e:
-        logger.error(f"Search failed in index {index_name}: {str(e)}")
+        logger.error(f"Search failed in index {request.index_name}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
@@ -285,23 +186,10 @@ async def search_documents(
     summary="대량 문서 삽입",
     description="여러 개의 문서를 한 번에 인덱스에 삽입합니다. 대량 데이터 처리에 최적화되어 있습니다."
 )
-async def bulk_insert_documents(
-    index_name: str = Query(..., description="문서를 삽입할 인덱스 이름"),
-    documents: List[Dict[str, Any]] = Body(..., description="삽입할 문서 목록")
-):
-    """
-    여러 문서를 한번에 삽입합니다 (대량 삽입).
-
-    Parameters:
-        index_name (str): 문서를 삽입할 인덱스 이름
-        documents (List[Dict[str, Any]]): 삽입할 문서 목록
-
-    Returns:
-        Dict: 대량 삽입 결과 (소요 시간, 에러 여부, 삽입된 문서 수)
-    """
+async def bulk_insert_documents(request: BulkInsertRequest):
     try:
-        logger.info(f"Bulk inserting {len(documents)} documents into index: {index_name}")
-        response = await es_service.bulk_insert_documents(index_name, documents)
+        logger.info(f"Bulk inserting {len(request.documents)} documents into index: {request.index_name}")
+        response = await es_service.bulk_insert_documents(request.index_name, request.documents)
         items_count = len(response.get("items", []))
         logger.info(f"Bulk insert completed: {items_count} items, errors: {response.get('errors')}")
         return {
@@ -311,5 +199,5 @@ async def bulk_insert_documents(
             "items_count": items_count
         }
     except Exception as e:
-        logger.error(f"Bulk insert failed in index {index_name}: {str(e)}")
+        logger.error(f"Bulk insert failed in index {request.index_name}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

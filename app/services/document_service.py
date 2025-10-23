@@ -88,20 +88,62 @@ async def read_file_content(file_path: str) -> str:
 # Elasticsearch Operations
 # ============================================
 
+async def save_original_document(
+    index_name: str,
+    document_id: str,
+    title: str,
+    content: str
+) -> str:
+    """
+    Save original document to Elasticsearch
+
+    Parameters:
+        index_name: Elasticsearch index name (knowledge_base_original)
+        document_id: Unique document ID
+        title: Document title
+        content: Full document content
+
+    Returns:
+        Document ID
+    """
+    try:
+        client = get_es_client()
+
+        document = {
+            "document_id": document_id,
+            "title": title,
+            "full_content": content,
+            "created_at": datetime.now().isoformat()
+        }
+
+        response = await client.index(
+            index=index_name,
+            id=document_id,
+            body=document
+        )
+
+        logger.info(f"Saved original document to Elasticsearch with ID: {document_id}")
+        return response["_id"]
+
+    except Exception as e:
+        logger.error(f"Failed to save original document to Elasticsearch: {str(e)}")
+        raise
+
+
 async def save_chunks_to_elasticsearch(
     index_name: str,
+    document_id: str,
     title: str,
-    chunks: List[str],
-    metadata: Optional[Dict[str, Any]] = None
+    chunks: List[str]
 ) -> List[str]:
     """
     Save chunks to Elasticsearch
 
     Parameters:
         index_name: Elasticsearch index name
+        document_id: Original document ID
         title: Document title
         chunks: List of chunks to save
-        metadata: Additional metadata
 
     Returns:
         List of saved document IDs
@@ -112,12 +154,12 @@ async def save_chunks_to_elasticsearch(
 
         for idx, chunk in enumerate(chunks):
             document = {
+                "document_id": document_id,
                 "title": title,
                 "content": chunk,
                 "chunk_index": idx,
                 "total_chunks": len(chunks),
-                "created_at": datetime.now().isoformat(),
-                "metadata": metadata or {}
+                "created_at": datetime.now().isoformat()
             }
 
             response = await client.index(
@@ -176,9 +218,9 @@ async def create_embeddings_for_chunks(chunks: List[str]) -> List[List[float]]:
 async def save_chunks_to_qdrant(
     client: QdrantClient,
     collection_name: str,
+    document_id: str,
     title: str,
-    chunks: List[str],
-    metadata: Optional[Dict[str, Any]] = None
+    chunks: List[str]
 ) -> List[str]:
     """
     Save chunks to Qdrant with embeddings
@@ -186,9 +228,9 @@ async def save_chunks_to_qdrant(
     Parameters:
         client: QdrantClient instance
         collection_name: Qdrant collection name
+        document_id: Original document ID
         title: Document title
         chunks: List of chunks to save
-        metadata: Additional metadata
 
     Returns:
         List of saved point IDs
@@ -210,11 +252,11 @@ async def save_chunks_to_qdrant(
                 id=point_id,
                 vector=embedding,
                 payload={
+                    "document_id": document_id,
                     "title": title,
                     "content": chunk,
                     "chunk_index": idx,
-                    "total_chunks": len(chunks),
-                    "metadata": metadata or {}
+                    "total_chunks": len(chunks)
                 }
             )
 
@@ -244,7 +286,6 @@ async def save_document(
     title: str,
     content: str,
     qdrant_client: QdrantClient,
-    metadata: Optional[Dict[str, Any]] = None,
     chunk_size: int = 500,
     overlap: int = 50
 ) -> Dict[str, Any]:
@@ -255,7 +296,6 @@ async def save_document(
         title: Document title
         content: Document content
         qdrant_client: QdrantClient instance
-        metadata: Additional metadata
         chunk_size: Chunk size
         overlap: Chunk overlap
 
@@ -263,6 +303,18 @@ async def save_document(
         Save result with both ES and Qdrant info
     """
     try:
+        # Generate unique document ID
+        document_id = str(uuid.uuid4())
+        logger.info(f"Generated document ID: {document_id}")
+
+        # Save original document to knowledge_base_original
+        await save_original_document(
+            index_name="knowledge_base_original",
+            document_id=document_id,
+            title=title,
+            content=content
+        )
+
         # Split into chunks
         chunks = split_text_into_chunks(content, chunk_size, overlap)
 
@@ -272,25 +324,27 @@ async def save_document(
         # Save to Elasticsearch
         es_chunk_ids = await save_chunks_to_elasticsearch(
             index_name="knowledge_base",
+            document_id=document_id,
             title=title,
-            chunks=chunks,
-            metadata=metadata
+            chunks=chunks
         )
 
         # Save to Qdrant
         qdrant_point_ids = await save_chunks_to_qdrant(
             client=qdrant_client,
             collection_name="knowledge",
+            document_id=document_id,
             title=title,
-            chunks=chunks,
-            metadata=metadata
+            chunks=chunks
         )
 
         return {
+            "document_id": document_id,
             "title": title,
             "total_chunks": len(chunks),
             "elasticsearch": {
-                "index_name": "knowledge_base",
+                "original_index": "knowledge_base_original",
+                "chunks_index": "knowledge_base",
                 "chunk_ids": es_chunk_ids
             },
             "qdrant": {
