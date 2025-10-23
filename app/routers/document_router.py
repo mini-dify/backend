@@ -26,6 +26,7 @@ router = APIRouter()
                         "document_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
                         "title": "제미니 회사 규정",
                         "total_chunks": 5,
+                        "embedding_model": "qwen/qwen2.5-embedding-32b",
                         "elasticsearch": {
                             "original_index": "knowledge_base_original",
                             "chunks_index": "knowledge_base",
@@ -46,11 +47,12 @@ async def upload_knowledge_document(
     qdrant_client: QdrantClient = Depends(get_qdrant_db)
 ):
     try:
-        logger.info(f"Received document upload request: '{request.title}'")
+        logger.info(f"Received document upload request: '{request.title}' with embedding model '{request.embedding_model}'")
         result = await document_service.save_document(
             title=request.title,
             content=request.content,
             qdrant_client=qdrant_client,
+            embedding_model=request.embedding_model,
             chunk_size=request.chunk_size,
             overlap=request.overlap
         )
@@ -78,6 +80,7 @@ async def upload_knowledge_document(
                         "document_id": "b2c3d4e5-f6g7-8901-bcde-fg2345678901",
                         "title": "test_script.txt",
                         "total_chunks": 3,
+                        "embedding_model": "qwen/qwen2.5-embedding-32b",
                         "elasticsearch": {
                             "original_index": "knowledge_base_original",
                             "chunks_index": "knowledge_base",
@@ -98,13 +101,14 @@ async def upload_knowledge_from_file(
     qdrant_client: QdrantClient = Depends(get_qdrant_db)
 ):
     try:
-        logger.info(f"Reading file: {request.file_path}")
+        logger.info(f"Reading file: {request.file_path} with embedding model '{request.embedding_model}'")
         content = await document_service.read_file_content(request.file_path)
         doc_title = request.title or os.path.basename(request.file_path)
         result = await document_service.save_document(
             title=doc_title,
             content=content,
             qdrant_client=qdrant_client,
+            embedding_model=request.embedding_model,
             chunk_size=request.chunk_size,
             overlap=request.overlap
         )

@@ -182,18 +182,19 @@ async def save_chunks_to_elasticsearch(
 # Qdrant Operations
 # ============================================
 
-async def create_embeddings_for_chunks(chunks: List[str]) -> List[List[float]]:
+async def create_embeddings_for_chunks(chunks: List[str], model: str) -> List[List[float]]:
     """
     Create embeddings for multiple chunks
 
     Parameters:
         chunks: List of text chunks
+        model: Embedding model name
 
     Returns:
         List of embedding vectors (each 4096 dimensions)
     """
     try:
-        logger.info(f"Creating embeddings for {len(chunks)} chunks")
+        logger.info(f"Creating embeddings for {len(chunks)} chunks using model '{model}'")
 
         embeddings = []
 
@@ -201,7 +202,8 @@ async def create_embeddings_for_chunks(chunks: List[str]) -> List[List[float]]:
             logger.info(f"Creating embedding {idx+1}/{len(chunks)}")
 
             response = await get_embedding_from_lms(
-                EmbeddingRequest(input=chunk)
+                EmbeddingRequest(input=chunk),
+                model=model
             )
 
             embedding = response["data"][0]["embedding"]
@@ -220,7 +222,8 @@ async def save_chunks_to_qdrant(
     collection_name: str,
     document_id: str,
     title: str,
-    chunks: List[str]
+    chunks: List[str],
+    embedding_model: str
 ) -> List[str]:
     """
     Save chunks to Qdrant with embeddings
@@ -231,6 +234,7 @@ async def save_chunks_to_qdrant(
         document_id: Original document ID
         title: Document title
         chunks: List of chunks to save
+        embedding_model: Embedding model name
 
     Returns:
         List of saved point IDs
@@ -239,7 +243,7 @@ async def save_chunks_to_qdrant(
         logger.info(f"Saving {len(chunks)} chunks to Qdrant collection '{collection_name}'")
 
         # Create embeddings
-        embeddings = await create_embeddings_for_chunks(chunks)
+        embeddings = await create_embeddings_for_chunks(chunks, model=embedding_model)
 
         # Create points
         points = []
@@ -286,6 +290,7 @@ async def save_document(
     title: str,
     content: str,
     qdrant_client: QdrantClient,
+    embedding_model: str,
     chunk_size: int = 500,
     overlap: int = 50
 ) -> Dict[str, Any]:
@@ -296,6 +301,7 @@ async def save_document(
         title: Document title
         content: Document content
         qdrant_client: QdrantClient instance
+        embedding_model: Embedding model name
         chunk_size: Chunk size
         overlap: Chunk overlap
 
@@ -335,13 +341,15 @@ async def save_document(
             collection_name="knowledge",
             document_id=document_id,
             title=title,
-            chunks=chunks
+            chunks=chunks,
+            embedding_model=embedding_model
         )
 
         return {
             "document_id": document_id,
             "title": title,
             "total_chunks": len(chunks),
+            "embedding_model": embedding_model,
             "elasticsearch": {
                 "original_index": "knowledge_base_original",
                 "chunks_index": "knowledge_base",

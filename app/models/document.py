@@ -13,6 +13,11 @@ class UploadDocumentRequest(BaseModel):
         description="문서 내용",
         example="제미니 회사의 근무 시간은 평일 오전 9시부터 오후 6시까지입니다..."
     )
+    embedding_model: str = Field(
+        "qwen/qwen2.5-embedding-32b",
+        description="임베딩 모델",
+        example="qwen/qwen2.5-embedding-32b"
+    )
     chunk_size: int = Field(
         500,
         description="청크 크기 (글자 수)",
@@ -35,6 +40,11 @@ class UploadFileRequest(BaseModel):
         None,
         description="문서 제목 (없으면 파일명 사용)",
         example="테스트 문서"
+    )
+    embedding_model: str = Field(
+        "qwen/qwen2.5-embedding-32b",
+        description="임베딩 모델",
+        example="qwen/qwen2.5-embedding-32b"
     )
     chunk_size: int = Field(
         500,

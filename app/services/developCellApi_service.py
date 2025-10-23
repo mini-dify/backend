@@ -4,14 +4,17 @@ from app.config import settings
 from app.models.developCellApi_model import EmbeddingRequest, ChatCompletionRequest
 
 
-async def get_embedding_from_lms(request: EmbeddingRequest) -> dict:
+async def get_embedding_from_lms(request: EmbeddingRequest, model: str = None) -> dict:
+    if model is None:
+        model = settings.EMBEDDING_MODEL
+
     headers = {
         "Authorization": settings.LMS_API_AUTHORIZATION,
         "Content-Type": "application/json"
     }
     url = settings.EMBEDDING_API_URL
     json_body = {
-        "model": settings.EMBEDDING_MODEL,
+        "model": model,
         "input": request.input
     }
 
