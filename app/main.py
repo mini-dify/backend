@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends
-from .routers import mongodb_router, qdrant_router, es_router, developCellApi_embedding, developCellApi_llm, document_router, search_router, assistant_router, chat_router
+from .routers import mongodb_router, qdrant_router, es_router, developCellApi_embedding, developCellApi_llm, document_router, search_router, assistant_router, chat_router, workflow_router
 from .db.database import close_mongo_connection, get_database, get_qdrant_db
 from .security import check_auth
 from .logging_config import setup_logging, get_logger
@@ -38,6 +38,7 @@ app.include_router(document_router.router, prefix="/document", tags=["Document"]
 app.include_router(search_router.router, prefix="/search", tags=["Search"])
 app.include_router(assistant_router.router, prefix="/assistants", tags=["Assistant"])
 app.include_router(chat_router.router, prefix="/chat", tags=["Chat"])
+app.include_router(workflow_router.router, prefix="/workflows", tags=["Workflow"])
 
 
 @app.get("/")

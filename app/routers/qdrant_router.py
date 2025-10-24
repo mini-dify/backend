@@ -4,7 +4,7 @@ from qdrant_client import QdrantClient
 from app.db.database import get_qdrant_db
 from app.models.qdrant import CollectionConfig, UpsertPoints, SearchQuery
 from app.services import qdrant_service
-from typing import List
+from typing import List, Optional
 
 router = APIRouter()
 
@@ -90,9 +90,9 @@ async def handle_ingest_file(
     chunk_size: int = Form(800),
     chunk_overlap: int = Form(100),
     batch_size: int = Form(64),
-    sheet_name: str | None = Form(None),
-    text_columns: str | None = Form(None),   # 문자열 JSON: '["title","content"]'
-    id_column: str | None = Form(None),
+    sheet_name: Optional[str] = Form(None),
+    text_columns: Optional[str] = Form(None),   # 문자열 JSON: '["title","content"]'
+    id_column: Optional[str] = Form(None),
     client: QdrantClient = Depends(get_qdrant_db)
 ):
     try:
