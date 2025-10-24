@@ -97,31 +97,31 @@ async def chat_with_rag(
 
     Parameters:
         assistant_id: Assistant ID
-        user_message: User's message
-        qdrant_client: Qdrant client instance
+        user_message: User's message (사용자 질문)
+        qdrant_client: Qdrant client instance (벡터 DB 클라이언트)
 
     Returns:
         Chat response with sources
     """
     try:
-        # 1. Get assistant configuration
+        # 1. 선택한 assistant 조회 (설정 정보를 가져온다.)
         assistant = await assistant_service.get_assistant(assistant_id)
         if not assistant:
             raise ValueError(f"Assistant not found: {assistant_id}")
 
         logger.info(f"Using assistant: {assistant.name} (ID: {assistant_id})")
 
-        # 2. Perform search
+        # 2. 조회된 assistant 설정 정보로 검색 시작
         search_results = await perform_search(
             query=user_message,
             search_config=assistant.search_config.dict(),
             qdrant_client=qdrant_client
         )
 
-        # 3. Format search results as context
+        # 3. 답변을 자연어로 변경애준다.
         context = format_search_results_as_context(search_results)
 
-        # 4. Construct messages for LLM
+        # 4. LLM 에 넘길 message 를 만들어 준다.
         messages = [
             ChatMessage(role="system", content=assistant.system_prompt),
             ChatMessage(role="user", content=f"{context}\n\n질문: {user_message}")
@@ -135,7 +135,7 @@ async def chat_with_rag(
             temperature=assistant.temperature
         )
 
-        # 6. Extract answer
+        # 6. 답변 추출
         answer = llm_response.get("choices", [{}])[0].get("message", {}).get("content", "")
 
         logger.info(f"RAG chat completed for assistant {assistant_id}")
