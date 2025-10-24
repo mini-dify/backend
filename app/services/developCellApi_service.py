@@ -29,16 +29,22 @@ async def get_embedding_from_lms(request: EmbeddingRequest, model: str = None) -
             raise HTTPException(status_code=500, detail=f"An error occurred while requesting the embedding API: {e}")
 
 
-async def get_chat_completion_from_lms(request: ChatCompletionRequest) -> dict:
+async def get_chat_completion_from_lms(request: ChatCompletionRequest, model: str = None, temperature: float = None) -> dict:
+    if model is None:
+        model = settings.CHAT_MODEL
+
     headers = {
         "Authorization": settings.LMS_API_AUTHORIZATION,
         "Content-Type": "application/json"
     }
     url = settings.CHAT_COMPLETIONS_API_URL
     json_body = {
-        "model": settings.CHAT_MODEL,
+        "model": model,
         "messages": [msg.dict() for msg in request.messages]
     }
+
+    if temperature is not None:
+        json_body["temperature"] = temperature
 
     async with httpx.AsyncClient() as client:
         try:
