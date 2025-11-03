@@ -52,6 +52,7 @@ def setup_logging():
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("elasticsearch").setLevel(logging.WARNING)
+    logging.getLogger("pymongo").setLevel(logging.WARNING)
 
     logging.info("=" * 80)
     logging.info("Application logging initialized")

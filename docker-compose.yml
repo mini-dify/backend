@@ -96,3 +96,52 @@ services:
     volumes:
       - ../elasticsearch/data/es03:/usr/share/elasticsearch/data
 
+  # Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://es01:9200
+      - xpack.security.enabled=false
+    depends_on:
+      - es01
+      - es02
+      - es03
+    restart: unless-stopped
+
+  # Filebeat (로그 수집기)
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    container_name: filebeat
+    user: root
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs:/var/log/app:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: filebeat -e -strict.perms=false
+    depends_on:
+      - es01
+      - kibana
+    restart: unless-stopped
+
+  # ILM 자동 설정
+  ilm-setup:
+    image: python:3.9-slim
+    container_name: ilm-setup
+    volumes:
+      - ./setup_ilm.py:/setup_ilm.py:ro
+    command: >
+      bash -c "
+        echo '⏳ Waiting for Elasticsearch to be ready...' &&
+        sleep 30 &&
+        pip install elasticsearch &&
+        python /setup_ilm.py
+      "
+    depends_on:
+      - es01
+      - kibana
+    restart: "no"
+

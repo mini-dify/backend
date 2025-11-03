@@ -1,0 +1,54 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/app/*.log
+
+    fields:
+      log_type: application
+      app_name: mini-dify-backend
+    fields_under_root: true
+
+    multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+    multiline.negate: true
+    multiline.match: after
+
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+
+  - dissect:
+      tokenizer: "%{timestamp} | %{level} | %{logger} | %{function} | %{message}"
+      field: "message"
+      target_prefix: "log"
+      ignore_failure: true
+
+output.elasticsearch:
+  hosts: ["es01:9200"]
+  index: "logs-mini-dify-%{+yyyy.MM.dd}"
+
+  ilm.enabled: true
+  ilm.rollover_alias: "logs-mini-dify"
+  ilm.pattern: "{now/d}-000001"
+
+  bulk_max_size: 50
+  worker: 1
+
+setup.kibana:
+  host: "kibana:5601"
+
+setup.template.name: "logs-mini-dify"
+setup.template.pattern: "logs-mini-dify-*"
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 1
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
