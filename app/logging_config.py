@@ -50,8 +50,7 @@ def setup_logging():
 
     # Reduce noise from third-party libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("elasticsearch").setLevel(logging.WARNING)
+    logging.getLogger("663897elasticsearch").setLevel(logging.WARNING)
     logging.getLogger("pymongo").setLevel(logging.WARNING)
 
     logging.info("=" * 80)

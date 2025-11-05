@@ -23,9 +23,9 @@ router = APIRouter()
     description="Elasticsearch에 존재하는 모든 인덱스의 이름을 조회합니다."
 )
 async def get_indices():
-    logger.info("Fetching Elasticsearch indices list")
+    logger.debug("Fetching Elasticsearch indices list")
     indices = await es_service.list_indices()
-    logger.info(f"Successfully fetched {len(indices)} indices")
+    logger.debug(f"Successfully fetched {len(indices)} indices")
     return indices
 
 

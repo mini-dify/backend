@@ -126,44 +126,26 @@ async def upload_knowledge_from_file(
 @router.get(
     "/list",
     summary="저장된 문서 목록 조회",
-    description="Elasticsearch와 Qdrant에 저장된 문서들을 조회합니다.",
+    description="Elasticsearch에 저장된 원본 문서들을 조회합니다.",
     responses={
         200: {
             "description": "문서 목록 조회 성공",
             "content": {
                 "application/json": {
                     "example": {
-                        "elasticsearch": {
-                            "total": 2,
-                            "documents": [
-                                {
-                                    "_id": "es_chunk_id_1",
-                                    "_source": {
-                                        "document_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                                        "title": "제미니 회사 규정",
-                                        "content": "제미니 회사의 근무 시간은...",
-                                        "chunk_index": 0,
-                                        "total_chunks": 5,
-                                        "created_at": "2025-10-22T10:30:00"
-                                    }
+                        "total": 2,
+                        "documents": [
+                            {
+                                "_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                                "_source": {
+                                    "document_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                                    "title": "제미니 회사 규정",
+                                    "content": "제미니 회사의 근무 시간은...",
+                                    "total_chunks": 5,
+                                    "created_at": "2025-10-22T10:30:00"
                                 }
-                            ]
-                        },
-                        "qdrant": {
-                            "total": 2,
-                            "points": [
-                                {
-                                    "id": "qd_point_id_1",
-                                    "payload": {
-                                        "document_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                                        "title": "제미니 회사 규정",
-                                        "content": "제미니 회사의 근무 시간은...",
-                                        "chunk_index": 0,
-                                        "total_chunks": 5
-                                    }
-                                }
-                            ]
-                        }
+                            }
+                        ]
                     }
                 }
             }
@@ -176,41 +158,21 @@ async def list_documents(
     qdrant_client: QdrantClient = Depends(get_qdrant_db)
 ):
     try:
-        # Elasticsearch에서 문서 조회
+        # Elasticsearch 원본 인덱스에서 문서 조회
         if title:
             query = {"match": {"title": title}}
         else:
             query = {"match_all": {}}
 
         es_docs = await es_service.search_documents(
-            index_name="knowledge_base",
+            index_name="knowledge_base_original",  # 원본 인덱스 사용
             query=query,
             size=limit
         )
 
-        # Qdrant에서 포인트 조회
-        qdrant_points = qdrant_client.scroll(
-            collection_name="knowledge",
-            limit=limit,
-            with_payload=True,
-            with_vectors=False
-        )
-
         return {
-            "elasticsearch": {
-                "total": len(es_docs),
-                "documents": es_docs
-            },
-            "qdrant": {
-                "total": len(qdrant_points[0]),
-                "points": [
-                    {
-                        "id": point.id,
-                        "payload": point.payload
-                    }
-                    for point in qdrant_points[0]
-                ]
-            }
+            "total": len(es_docs),
+            "documents": es_docs
         }
     except Exception as e:
         logger.error(f"Failed to list documents: {str(e)}")
